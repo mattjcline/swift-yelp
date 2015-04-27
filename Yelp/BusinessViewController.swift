@@ -8,14 +8,13 @@
 
 import UIKit
 
-protocol FiltersViewControllerDelegate : class {
-    func filtersViewController(filterVC: FiltersViewController, filtersDidChange: Bool, filtersDictionary: [Int : Bool])
-}
-
-class BusinessViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate {
+class BusinessViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate, FiltersViewControllerDelegate {
     
     var searchBar: UISearchBar!
     var businesses: [Business]!
+    let limit = 20
+    var offset = 0
+    var previousQueryString = ""
     
     required init(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
@@ -40,26 +39,33 @@ class BusinessViewController: UIViewController, UITableViewDataSource, UITableVi
             //println("\(notification)")
         }
         
-        performSearch("ramen")
-        
-        reload()
+        performSearch("burgers")
     }
     
     func performSearch(queryString: String) {
-        var limit = 0
-        var offset = 0
-        Business.searchWithTerm(queryString, sort: .Distance, categories: [], deals: false, limit: limit, offset: offset) { (businesses: [Business]!, error: NSError!) -> Void in
+        Business.searchWithTerm(queryString, sort: .Distance, categories: [], deals: false, limit: self.limit, offset: self.offset) { (businesses: [Business]!, error: NSError!) -> Void in
             self.businesses = businesses
             for business in businesses {
                 println(business.name!)
                 println(business.address!)
             }
+            if queryString == self.previousQueryString {
+                self.offset = self.offset + self.limit
+            } else {
+                self.previousQueryString = queryString
+                self.resetResultsOffset()
+            }
             self.reload()
         }
     }
     
+    func resetResultsOffset() {
+        self.offset = 0
+    }
+    
     func clearResults() {
         self.businesses = []
+        resetResultsOffset()
     }
     
     func searchBarSearchButtonClicked(searchBar: UISearchBar) {
@@ -100,6 +106,23 @@ class BusinessViewController: UIViewController, UITableViewDataSource, UITableVi
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
+    }
+    
+    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
+        let navigationController = segue.destinationViewController as! UINavigationController
+        let filtersViewController = navigationController.topViewController as! FiltersViewController
+        
+        filtersViewController.delegate = self
+    }
+    
+    func filtersViewController(filtersViewController: FiltersViewController, didUpdateFilters filters: [String : AnyObject]) {
+        
+        var categories = filters["categories"] as? [String]
+        
+        Business.searchWithTerm("burgers", sort: nil, categories: categories, deals: nil, limit: 20, offset: 0) { (businesses: [Business]!, error: NSError!) -> Void in
+            self.businesses = businesses
+            self.tableView.reloadData()
+        }
     }
     
 }

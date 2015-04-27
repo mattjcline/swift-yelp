@@ -8,14 +8,15 @@
 
 import UIKit
 
-protocol FilterCellDelegate: class {
-    func filterCell(filterCell: FilterCell, value: Bool)
+@objc protocol FilterCellDelegate: class {
+    optional func filterCell(filterCell: FilterCell, didChangeValue value: Bool)
 }
 
 class FilterCell: UITableViewCell {
 
     @IBOutlet weak var filterSwitch: UISwitch!
     @IBOutlet weak var filterLabel: UILabel!
+
     weak var delegate: FilterCellDelegate?
     
     override func awakeFromNib() {
@@ -33,7 +34,7 @@ class FilterCell: UITableViewCell {
     }
     
     func switchValueChanged() {
-        delegate?.filterCell(self, value: filterSwitch.on)
+        delegate?.filterCell?(self, didChangeValue: filterSwitch.on)
     }
 
 }
