@@ -11,6 +11,7 @@ import UIKit
 class BusinessViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate, FiltersViewControllerDelegate {
     
     var searchBar: UISearchBar!
+    var refreshControl: UIRefreshControl!
     var businesses: [Business]!
     let limit = 20
     var offset = 0
@@ -24,26 +25,20 @@ class BusinessViewController: UIViewController, UITableViewDataSource, UITableVi
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        self.searchBar = UISearchBar()
-        self.searchBar.delegate = self
-        self.searchBar.placeholder = "Yelp!"
-        self.navigationItem.titleView = self.searchBar
-        
-        tableView.delegate = self
-        tableView.dataSource = self
-        tableView.rowHeight = UITableViewAutomaticDimension
-        tableView.estimatedRowHeight = 120
+        initTableView()
+        initSearchBar()
+        initRefreshControl()
+        initInfiniteScroll()
         
         NSNotificationCenter.defaultCenter().addObserverForName(UIApplicationDidBecomeActiveNotification, object: nil, queue: NSOperationQueue.mainQueue()) { (notification) -> Void in
             // refresh the ViewController (with new Geo data?)
             //println("\(notification)")
         }
         
-        performSearch("burgers")
     }
     
-    func performSearch(queryString: String) {
-        Business.searchWithTerm(queryString, sort: .Distance, categories: [], deals: false, limit: self.limit, offset: self.offset) { (businesses: [Business]!, error: NSError!) -> Void in
+    func performSearch(queryString: String, limit: Int, offset: Int) {
+        Business.searchWithTerm(queryString, sort: .Distance, categories: [], deals: false, limit: limit, offset: offset) { (businesses: [Business]!, error: NSError!) -> Void in
             self.businesses = businesses
             for business in businesses {
                 println(business.name!)
@@ -70,13 +65,17 @@ class BusinessViewController: UIViewController, UITableViewDataSource, UITableVi
     
     func searchBarSearchButtonClicked(searchBar: UISearchBar) {
         self.clearResults()
-        self.performSearch(searchBar.text)
+        self.performSearch(searchBar.text, limit: self.limit, offset: self.offset)
         searchBar.resignFirstResponder()
         reload()
     }
     
     func reload() {
         self.tableView.reloadData()
+    }
+    
+    func onRefresh() {
+        self.refreshControl.endRefreshing()
     }
     
     func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -101,6 +100,34 @@ class BusinessViewController: UIViewController, UITableViewDataSource, UITableVi
         }
         
         return cell
+    }
+    
+    func initTableView() {
+        tableView.delegate = self
+        tableView.dataSource = self
+        tableView.rowHeight = UITableViewAutomaticDimension
+        tableView.estimatedRowHeight = 120
+    }
+    
+    func initSearchBar() {
+        self.searchBar = UISearchBar()
+        self.searchBar.delegate = self
+        self.searchBar.placeholder = "Yelp!"
+        self.navigationItem.titleView = self.searchBar
+    }
+    
+    func initRefreshControl() {
+        refreshControl = UIRefreshControl()
+        refreshControl.addTarget(self, action: "onRefresh", forControlEvents: UIControlEvents.ValueChanged)
+        tableView.insertSubview(refreshControl, atIndex: 0)
+    }
+    
+    func initInfiniteScroll() {
+        self.tableView.addInfiniteScrollingWithActionHandler({
+            self.performSearch(self.searchBar.text, limit: self.limit, offset: self.offset)
+        })
+        self.tableView.showsInfiniteScrolling = false
+        reload()
     }
     
     override func didReceiveMemoryWarning() {
